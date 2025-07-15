@@ -1,0 +1,203 @@
+name: Tauri Multi-Platform CI
+
+on:
+  push:
+    branches: [tauri]
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update submodules
+        run: git submodule update --init --recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      
+      - name: Prepare Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
+          mv android-ndk-r27c-linux.zip ~
+          unzip ~
+          realpath ~/android-ndk-r27c
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Tauri CLI with mobile support
+        run: cargo install tauri-cli --features android --force
+
+      - name: Init Android project
+        run: |
+          export NDK_HOME="$HOME/android-ndk-r27c"
+          npx tauri android init
+
+      - name: Build Android APK
+        run: |
+          export NDK_HOME="$HOME/android-ndk-r27c"
+          npx tauri android build
+
+      - name: Find Android APK
+        id: find_apk
+        run: |
+          APK_PATH=$(find src-tauri/gen/android/app/build/outputs -type f -name "*.apk" | head -n 1)
+          echo "apk_path=$APK_PATH" >> $GITHUB_OUTPUT
+
+      - name: Create or get Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Android APK to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.find_apk.outputs.apk_path }}
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Update submodules
+        run: git submodule update --init --recursive
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Tauri CLI
+        run: cargo install tauri-cli --force
+
+      - name: Build Windows app
+        run: npx tauri build
+
+      - name: Find Windows bundle
+        id: find_win
+        shell: bash
+        run: |
+          EXE_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.msi" -o -name "*.exe" -o -name "*.zip" \) | head -n 1)
+          echo "exe_path=$EXE_PATH" >> $GITHUB_OUTPUT
+
+      - name: Upload Windows bundle to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.find_win.outputs.exe_path }}
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # linux:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Update submodules
+  #       run: git submodule update --init --recursive
+  #
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #
+  #     - name: Setup Rust
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         toolchain: stable
+  #
+  #     - name: Install dependencies
+  #       run: npm install
+  #
+  #     - name: Install Tauri CLI
+  #       run: cargo install tauri-cli --force
+  #
+  #     - name: Build Linux app
+  #       run: npx tauri build
+  #
+  #     - name: Find Linux bundle
+  #       id: find_linux
+  #       run: |
+  #         APP_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.AppImage" -o -name "*.deb" -o -name "*.rpm" \) | head -n 1)
+  #         echo "app_path=$APP_PATH" >> $GITHUB_OUTPUT
+  #
+  #     - name: Upload Linux bundle to release
+  #       uses: softprops/action-gh-release@v2
+  #       with:
+  #         files: ${{ steps.find_linux.outputs.app_path }}
+  #         tag_name: ${{ github.ref_name }}
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # macos:
+  #   runs-on: macos-latest
+  #   steps:
+  #     - name: Checkout repository
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Update submodules
+  #       run: git submodule update --init --recursive
+  #
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '20'
+  #
+  #     - name: Setup Rust
+  #       uses: dtolnay/rust-toolchain@stable
+  #       with:
+  #         toolchain: stable
+  #
+  #     - name: Install dependencies
+  #       run: npm install
+  #
+  #     - name: Install Tauri CLI
+  #       run: cargo install tauri-cli --force
+  #
+  #     - name: Build macOS app
+  #       run: npx tauri build
+  #
+  #     - name: Find macOS bundle
+  #       id: find_mac
+  #       run: |
+  #         DMG_PATH=$(find src-tauri/target/release/bundle -type f \( -name "*.dmg" -o -name "*.app" \) | head -n 1)
+  #         echo "dmg_path=$DMG_PATH" >> $GITHUB_OUTPUT
+  #
+  #     - name: Upload macOS bundle to release
+  #       uses: softprops/action-gh-release@v2
+  #       with:
+  #         files: ${{ steps.find_mac.outputs.dmg_path }}
+  #         tag_name: ${{ github.ref_name }}
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

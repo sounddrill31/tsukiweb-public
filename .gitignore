@@ -32,3 +32,4 @@ tools/generate-thumbnails/output
 tools/script-convert/*
 tools/sprites-transparency/*
 !tools/**/*.js
+gen
