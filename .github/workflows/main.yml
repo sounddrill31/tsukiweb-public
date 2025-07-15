@@ -40,7 +40,8 @@ jobs:
         run: npm install
 
       - name: Install Tauri CLI with mobile support
-        run: cargo install tauri-cli --features android --force
+        run: | 
+          cargo install tauri-cli --force
 
       - name: Init Android project
         run: |
