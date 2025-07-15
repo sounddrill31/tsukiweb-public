@@ -31,8 +31,10 @@ jobs:
         run: |
           wget https://dl.google.com/android/repository/android-ndk-r27c-linux.zip
           mv android-ndk-r27c-linux.zip ~
-          unzip ~
-          realpath ~/android-ndk-r27c
+          cd ~
+          unzip android-ndk-r27c-linux.zip
+          echo "NDK Path:"
+          realpath android-ndk-r27c
 
       - name: Install dependencies
         run: npm install
